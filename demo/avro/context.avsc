@@ -1,0 +1,31 @@
+{
+  "fields": [
+    {
+      "name": "ProductId",
+      "type": "int"
+    },
+    {
+      "name": "ProductDescription",
+      "type": "string"
+    },
+    {
+      "name": "ProductImageGCSUri",
+      "type": "string"
+    },
+    {
+      "name": "ProductAttributes",
+      "type": "string"
+    },
+    {
+      "name": "ProductImageIndexID",
+      "type": "string"
+    },
+    {
+      "name": "ProductTextIndexID",
+      "type": "string"
+    }
+  ],
+  "name": "context",
+  "namespace": "com.mycorp.mynamespace",
+  "type": "record"
+}

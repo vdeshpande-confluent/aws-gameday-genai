@@ -1,0 +1,39 @@
+{
+  "fields": [
+    {
+      "name": "prompt_details",
+      "type": {
+        "fields": [
+          {
+            "name": "prompt_id",
+            "type": "string"
+          },
+          {
+            "name": "text",
+            "type": "string"
+          },
+          {
+            "name": "image_url",
+            "type": "string"
+          },
+          {
+            "name": "session_id",
+            "type": "int"
+          }
+        ],
+        "name": "prompt_details_record",
+        "type": "record"
+      }
+    },
+    {
+      "name": "matched_indexes",
+      "type": {
+        "items": "string",
+        "type": "array"
+      }
+    }
+  ],
+  "name": "prompt_embedding",
+  "namespace": "com.genai.mynamespace",
+  "type": "record"
+}
