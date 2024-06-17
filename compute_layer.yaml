@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template to create S3 buckets and OpenSearch Service domain
+
+Parameters:
+  EnvironmentPrefix:
+    Type: String
+    Description: Prefix to identify the buckets and resources
+    Default: gameday-cflt
+  S3CodeBucketName:
+    Type: String
+    Description: Lambda Code and Layer bucket
+    Default: gameday-cflt-code
+  S3DataBucketName:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: gameday-cflt-data
+  ContextClientCodeKey:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: context_client.zip
+  PromptClientCodeKey:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: prompt_client.zip
+  DataClientCodeKey:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: data_generation_client.zip  
+  ResultClientCodeKey:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: synthesize_result_client.zip
+  LambdaLayerCodeKey:
+    Type: String
+    Description: Lambda Layer S3 Key
+    Default: awsgameday_confluent_sdk_v2.zip
+
+Resources:
+
+  VectorCollection:
+    Type: 'AWS::OpenSearchServerless::Collection'
+    Properties:
+      Name: !Sub '${EnvironmentPrefix}-collection'
+      Type: VECTORSEARCH
+      Description: Search collection
+    DependsOn: EncryptionPolicy
+
+  EncryptionPolicy:
+    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
+    Properties:
+      Name: !Sub '${EnvironmentPrefix}-encryption-policy'
+      Type: encryption
+      Description: Encryption policy for test collection
+      Policy: >-
+        {"Rules":[{"ResourceType":"collection","Resource":["collection/gameday-cflt-collection"]}],"AWSOwnedKey":true}
+
+  # Lambda Layer
+  LambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub '${EnvironmentPrefix}-common-layer'
+      CompatibleRuntimes:
+        - python3.12
+      Content:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref LambdaLayerCodeKey
+
+  # Lambda Function 1
+  LambdaFunction1:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-context-client'
+      Handler: lambdas.context_client.main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 128
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3DataBucketName
+          HOST: !GetAtt VectorCollection.CollectionEndpoint
+          INDEX_NAME: rag-index
+          REGION: us-east-1
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref ContextClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+
+  # Lambda Function 2
+  LambdaFunction2:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-prompt-client'
+      Handler: lambdas.prompt_client.main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 128
+
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref PromptClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+
+  # Lambda Function 3
+  LambdaFunction3:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-data-generation'
+      Handler: lambdas.data_generation_client.main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 128
+      Environment:
+        Variables:
+          VAR1: value1
+          VAR2: value2
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref DataClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+
+  # Lambda Function 4 (with 1024MB memory)
+  LambdaFunction4:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-synthesize-result'
+      Handler: lambdas.synthesize_result_client.main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          VAR1: value1
+          VAR2: value2
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref ResultClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${EnvironmentPrefix}-exec-role'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+        - arn:aws:iam::aws:policy/AmazonOpenSearchServiceFullAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+          
+                
+Outputs:
+  LambdaLayerVersionArn:
+    Description: "ARN of the Lambda Layer Version"
+    Value: !Ref LambdaLayer
+  LambdaExecutionRoleArn:
+    Description: "ARN of the Lambda Execution Role"
+    Value: !GetAtt LambdaExecutionRole.Arn

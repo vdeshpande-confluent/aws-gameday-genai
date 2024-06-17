@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template to create S3 buckets and OpenSearch Service domain
+
+Parameters:
+  EnvironmentPrefix:
+    Type: String
+    Description: Prefix to identify the buckets and resources
+    Default: gameday-cflt
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${EnvironmentPrefix}-data'
+
+  CodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${EnvironmentPrefix}-code'
+
+Outputs:
+  DataBucketName:
+    Description: Name of the S3 bucket for data
+    Value: !Ref DataBucket
+
+  CodeBucketName:
+    Description: Name of the S3 bucket for code
+    Value: !Ref CodeBucket
+

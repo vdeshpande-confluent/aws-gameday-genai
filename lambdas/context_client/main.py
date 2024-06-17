@@ -2,11 +2,12 @@
 import os
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
-from bedrock_context_embedding_client import EmbeddingPredictionClient
-
+from .bedrock_context_embedding_client import EmbeddingPredictionClient
+from .configure_opensearch_index import configure_opensearch_index
 
 HOST = os.environ.get("HOST")
 REGION= os.environ.get("REGION")
+INDEX_NAME = os.environ.get("INDEX_NAME")
 # host = 'duh8pbqxbazq9o5qkmm1.us-east-1.aoss.amazonaws.com'  # serverless collection endpoint, without https://
 # region = 'us-east-1'  # e.g. us-east-1
 
@@ -17,7 +18,7 @@ auth = AWSV4SignerAuth(credentials, REGION, service)
 
 # create an opensearch client and use the request-signer
 client = OpenSearch(
-    hosts=[{'host': HOST, 'port': 443}],
+    hosts=[{'host': HOST[8:], 'port': 443}],
     http_auth=auth,
     use_ssl=True,
     verify_certs=True,
@@ -44,6 +45,7 @@ def lambda_handler(event, context):
 
   embeddingsJson = embeddingPredictionClient.get_embeddings(s3_image_key=product_image_key,description=contextual_text, dimension=1024)
   try:
+      
       text_document = {
         "context_index_id": ProductTextIndexID,
         "vector_embedding": embeddingsJson['text_embedding']
@@ -53,7 +55,9 @@ def lambda_handler(event, context):
         "vector_embedding": embeddingsJson['image_embedding']
       }
       print('Inserting vector into database')
-      index_name = 'rag-index'
+      index_name =INDEX_NAME
+      configure_opensearch_index(index_name=INDEX_NAME,os_client=client)
+
       text_response = client.index(
       index = index_name,
       body = text_document
@@ -81,8 +85,8 @@ def get_s3_key_from_uri(s3_uri):
     else:
         raise ValueError("Invalid S3 URI format, must start with 's3://'")
     
-# product_attributes = "{\"product_attributes\": [{\"attribute_name\": \"Color\", \"attribute_value\": \"Blue\"}, {\"attribute_name\": \"Size\", \"attribute_value\": \"Medium\"}, {\"attribute_name\": \"Material\", \"attribute_value\": \"Cotton\"}, {\"attribute_name\": \"Pattern\", \"attribute_value\": \"Anarkali\"}]}"  
-# product_image_uri = "s3://awsgameday1/Khaadi_Data/images/ACA231001/image_0.jpg"
-# product_id = 1100
-# event =[{'payload': {'key': None, 'value': {'ProductId': product_id,'ProductImageIndexID':f'{product_id}_image','ProductTextIndexID':f'{product_id}_text', 'ProductDescription':'This a blue women anarkali dress','ProductImageGCSUri':product_image_uri , 'ProductAttributes':product_attributes }, 'timestamp': 1718264988578, 'topic': 'prompt', 'partition': 1, 'offset': 11}}]
-# lambda_handler(event, 'context')
+product_attributes = "{\"product_attributes\": [{\"attribute_name\": \"Color\", \"attribute_value\": \"Blue\"}, {\"attribute_name\": \"Size\", \"attribute_value\": \"Medium\"}, {\"attribute_name\": \"Material\", \"attribute_value\": \"Cotton\"}, {\"attribute_name\": \"Pattern\", \"attribute_value\": \"Anarkali\"}]}"  
+product_image_uri = "s3://awsgameday1/Khaadi_Data/images/ACA231001/image_0.jpg"
+product_id = 1100
+event =[{'payload': {'key': None, 'value': {'ProductId': product_id,'ProductImageIndexID':f'{product_id}_image','ProductTextIndexID':f'{product_id}_text', 'ProductDescription':'This a blue women anarkali dress','ProductImageGCSUri':product_image_uri , 'ProductAttributes':product_attributes }, 'timestamp': 1718264988578, 'topic': 'prompt', 'partition': 1, 'offset': 11}}]
+lambda_handler(event, 'context')
