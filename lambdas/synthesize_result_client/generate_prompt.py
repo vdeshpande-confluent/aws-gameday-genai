@@ -1,10 +1,10 @@
 import base64
 import logging
-from models.model import HumanRequest
+from model import HumanRequest
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 # Function to get encoded image from S3 URI
 def get_encoded_image_from_uri(s3_uri,s3_client):
     try:
@@ -69,12 +69,12 @@ def generate_prompt(humanRequest : HumanRequest,s3_client):
         guidelines = (
             "Following these guidelines is utmost necessary for the product recommendation: \n"
             "1. You have been given two arrays of  as part of the Similar Products Images context, with S3 URIs.\n"
-            "2. Return all three best-matched S3 URI of the image as a response.\n"
+            "2. Return best-matched S3 URIs of the image as a response.\n"
             "3. Your response must be a clothing guide that includes clothing recommendations along with the S3 URI mentioned in point 2."
         )
         content= content +(guidelines)
        
-        # print(content)
+        # logger.info(content)
         logger.info(len(content))
     except Exception as e:
         logger.error(f"Error generating prompt: {e}")

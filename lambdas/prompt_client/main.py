@@ -1,9 +1,12 @@
-from .predict.bedrock_prompt_embedding_client import EmbeddingPredictionClient
-from .search.prompt_open_search_client import VectorSearchClient
-from .kafka.producer import run_producer
+from predict.bedrock_prompt_embedding_client import EmbeddingPredictionClient
+from search.prompt_open_search_client import VectorSearchClient
+from kafka.producer import run_producer
 import os
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 
 KAFKA_TOPIC_NAME = os.environ.get("KAFKA_TOPIC_NAME")
@@ -32,7 +35,7 @@ auth = AWSV4SignerAuth(credentials, REGION, 'aoss')
 
 # create an opensearch client and use the request-signer
 os_client = OpenSearch(
-    hosts=[{'host': HOST, 'port': 443}],
+    hosts=[{'host': HOST[8:], 'port': 443}],
     http_auth=auth,
     use_ssl=True,
     verify_certs=True,
@@ -44,21 +47,21 @@ embeddingPredictionClient = EmbeddingPredictionClient()
 vectorSearchClient = VectorSearchClient(os_client)
 
 def lambda_handler(event, context):
-    print(event)
+    logger.info(event)
     try:
         prompt_details = event[0]['payload']['value']
         text = prompt_details['text']
         image_url = prompt_details['image_url']
-        print(prompt_details['prompt_id'])
+        logger.info(prompt_details['prompt_id'])
         s3_image_key = get_s3_key_from_uri(image_url)
         embeddings = embeddingPredictionClient.get_embeddings(s3_image_key=s3_image_key,description=text, dimension=1024)
-        print(f"Received embeddings {embeddings}")
+        logger.info(f"Received embeddings {embeddings}")
         matched_items = vectorSearchClient.query_vector_search(embeddings,1)
-        print(f"Received matched_items {matched_items}")
+        logger.info(f"Received matched_items {matched_items}")
         response_text = run_producer(matched_items,prompt_details,PRODUCER_CONF,SCHEMA_CONF,KAFKA_TOPIC_NAME)
         return "Success"
     except Exception as e:
-        print(e)
+        logger.error(e)
         return e
 
 def get_s3_key_from_uri(s3_uri):
@@ -72,5 +75,6 @@ def get_s3_key_from_uri(s3_uri):
             raise ValueError("Invalid S3 URI format, no '/' found after bucket name")
     else:
         raise ValueError("Invalid S3 URI format, must start with 's3://'")
-    
 
+# event=[{'payload':{'value':{'prompt_id':'abcedrf','text':'Suggest me a similar dress','session_id':123,'image_url':'s3://awsgameday1/Khaadi_Data/images/ACA231001/image_0.jpg'}}}]
+# lambda_handler(event,'contxt')

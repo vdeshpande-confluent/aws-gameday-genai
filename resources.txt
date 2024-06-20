@@ -1,0 +1,27 @@
+Lambdas : 
+1. cflt-gameday-prompt-producer -> prompt
+2. cflt-gameday-data-generation -> context
+3. cflt-gameday-context-client -> nowhere , just update the index
+4. cflt-gameday-prompt-client -> prompt_embedding
+5. cflt-gameday-synthesize-result -> product_recommendations
+
+Connectors : 
+1. Prompt_Lambda_Sink (prompt)
+2. Context_Lambda_Sink (context)
+3. Synthesize_Lambda_Sink -> async (prompt-context-match)
+
+Buckets : 
+Lambda and layer Code Bucket
+Data Bucket
+
+Opensearch Collection Serverless
+- Data Access policy
+- Network Access policy
+
+IAM roles 
+- Lambda Combined Role 
+    - s3 full Access
+    - bedrock full Access
+    - Opensearch full Access
+    - Opensearch full Serverless Access
+    - aoss policy

@@ -1,15 +1,15 @@
- 
 import os
 import boto3
 from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
-from .bedrock_context_embedding_client import EmbeddingPredictionClient
-from .configure_opensearch_index import configure_opensearch_index
+from bedrock_context_embedding_client import EmbeddingPredictionClient
+from configure_opensearch_index import configure_opensearch_index
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 HOST = os.environ.get("HOST")
 REGION= os.environ.get("REGION")
 INDEX_NAME = os.environ.get("INDEX_NAME")
-# host = 'duh8pbqxbazq9o5qkmm1.us-east-1.aoss.amazonaws.com'  # serverless collection endpoint, without https://
-# region = 'us-east-1'  # e.g. us-east-1
 
 service = 'aoss'
 credentials = boto3.Session().get_credentials()
@@ -30,7 +30,7 @@ embeddingPredictionClient = EmbeddingPredictionClient()
 
 
 def lambda_handler(event, context):
-  print(event)
+  logger.info(event)
   product_details = event[0]['payload']['value']
   ProductId = product_details["ProductId"]
   ProductImageUri = product_details["ProductImageGCSUri"]
@@ -54,7 +54,7 @@ def lambda_handler(event, context):
         "context_index_id": ProductImageIndexID,
         "vector_embedding": embeddingsJson['image_embedding']
       }
-      print('Inserting vector into database')
+      logger.info('Inserting vector into database')
       index_name =INDEX_NAME
       configure_opensearch_index(index_name=INDEX_NAME,os_client=client)
 
@@ -62,15 +62,15 @@ def lambda_handler(event, context):
       index = index_name,
       body = text_document
       )
-      print(text_response)
+      logger.info(text_response)
       image_response = client.index(
       index = index_name,
       body = image_document
       )
-      print(image_response)
+      logger.info(image_response)
       return "Vector Stored Sucessfully"
   except Exception as e:
-      print(e)
+      logger.info(e)
       return e
   
 def get_s3_key_from_uri(s3_uri):
@@ -85,8 +85,8 @@ def get_s3_key_from_uri(s3_uri):
     else:
         raise ValueError("Invalid S3 URI format, must start with 's3://'")
     
-product_attributes = "{\"product_attributes\": [{\"attribute_name\": \"Color\", \"attribute_value\": \"Blue\"}, {\"attribute_name\": \"Size\", \"attribute_value\": \"Medium\"}, {\"attribute_name\": \"Material\", \"attribute_value\": \"Cotton\"}, {\"attribute_name\": \"Pattern\", \"attribute_value\": \"Anarkali\"}]}"  
-product_image_uri = "s3://awsgameday1/Khaadi_Data/images/ACA231001/image_0.jpg"
-product_id = 1100
-event =[{'payload': {'key': None, 'value': {'ProductId': product_id,'ProductImageIndexID':f'{product_id}_image','ProductTextIndexID':f'{product_id}_text', 'ProductDescription':'This a blue women anarkali dress','ProductImageGCSUri':product_image_uri , 'ProductAttributes':product_attributes }, 'timestamp': 1718264988578, 'topic': 'prompt', 'partition': 1, 'offset': 11}}]
-lambda_handler(event, 'context')
+# product_attributes = "{\"product_attributes\": [{\"attribute_name\": \"Color\", \"attribute_value\": \"Blue\"}, {\"attribute_name\": \"Size\", \"attribute_value\": \"Medium\"}, {\"attribute_name\": \"Material\", \"attribute_value\": \"Cotton\"}, {\"attribute_name\": \"Pattern\", \"attribute_value\": \"Anarkali\"}]}"  
+# product_image_uri = "s3://awsgameday1/raw-dataset/images/LLA230711/image_4.jpg"
+# product_id = 1100
+# event =[{'payload': {'key': None, 'value': {'ProductId': product_id,'ProductImageIndexID':f'{product_id}_image','ProductTextIndexID':f'{product_id}_text', 'ProductDescription':'This a blue women anarkali dress','ProductImageGCSUri':product_image_uri , 'ProductAttributes':product_attributes }, 'timestamp': 1718264988578, 'topic': 'prompt', 'partition': 1, 'offset': 11}}]
+# lambda_handler(event, 'context'

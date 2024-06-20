@@ -3,10 +3,16 @@ import json
 import boto3
 import base64
 import numpy as np
+import logging
+import os
+logger = logging.getLogger()
+logger.setLevel("INFO")
+
 bedrock_client = boto3.client('bedrock-runtime',region_name='us-east-1')
 boto3_session = boto3.session.Session()
 region_name = boto3_session.region_name    
 s3_client = boto3.client('s3')
+bucket_name = os.environ.get("BUCKET_NAME")
 
 class EmbeddingPredictionClient:
 
@@ -28,7 +34,7 @@ class EmbeddingPredictionClient:
         }
 
         if s3_image_key:
-            image_object = s3_client.get_object(Bucket="awsgameday1", Key=s3_image_key)
+            image_object = s3_client.get_object(Bucket=bucket_name, Key=s3_image_key)
             image_content = image_object['Body'].read()
             encoded_image = base64.b64encode(image_content).decode('utf-8')
             payload_body_image["inputImage"] = encoded_image
@@ -38,8 +44,8 @@ class EmbeddingPredictionClient:
 
         assert payload_body_image, "please provide either an image"
         assert payload_body_text, "please provide a text description"
-        print("\n".join(payload_body_image.keys()))
-        print("\n".join(payload_body_text.keys()))
+        logger.info("\n".join(payload_body_image.keys()))
+        logger.info("\n".join(payload_body_text.keys()))
 
         response_text = bedrock_client.invoke_model(
             body=json.dumps({**payload_body_text, **embedding_config}), 
@@ -61,5 +67,5 @@ class EmbeddingPredictionClient:
             'image_embedding' :image_embeddings,
             'text_embedding':text_embeddings
             }
-        # print(embeddingsJson)
+        # logger.info(embeddingsJson)
         return embeddingsJson

@@ -2,10 +2,9 @@ import boto3
 import json
 import base64
 import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Initialize AWS clients
 bedrock_client = boto3.client('bedrock-runtime')
@@ -57,7 +56,7 @@ def content_generation(prompt: str, im):
     except Exception as err:
         message = err.response["Error"]["Message"]
         logger.error("A client error occurred: %s", message)
-        print("A client error occured: " +
+        logger.error("A client error occured: " +
               format(message))
     return response
 
@@ -96,7 +95,7 @@ def image_to_attributes(image_uri: str,s3_client) -> dict:
         raise ValueError("Invalid S3 URI format, must start with 's3://'")
 
     responses = content_generation(prompt, im)
-    print(json.dumps(responses['content'][0]['text'], indent=4))
+    logger.info(json.dumps(responses['content'][0]['text'], indent=4))
     return json.dumps(responses['content'][0]['text'], indent=4)
 
 def image_to_product_description(image_uri: str,s3_client) -> dict:
@@ -108,7 +107,7 @@ def image_to_product_description(image_uri: str,s3_client) -> dict:
         raise ValueError("Invalid S3 URI format, must start with 's3://'")
 
     responses = content_generation(prompt, im)
-    print(json.dumps(responses['content'][0]['text'], indent=4))
+    logger.info(json.dumps(responses['content'][0]['text'], indent=4))
     return json.dumps(responses['content'][0]['text'], indent=4)
 
 def parse_project_attributes_from_dict(attributes_dict: dict) -> dict:
@@ -123,7 +122,7 @@ def parse_list_to_dict(attributes_list: list) -> dict:
 # image = "s3://awsgameday1/Khaadi_Data/images/ACA231001/image_0.jpg"
 
 # attributes = image_to_attributes(image,)
-# print(attributes)
+# logger.info(attributes)
 
 # description = image_to_product_description(image)
-# print(description)
+# logger.info(description)

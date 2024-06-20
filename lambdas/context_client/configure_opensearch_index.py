@@ -1,8 +1,9 @@
 import json
-import logging
 from opensearchpy import RequestError
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
-logger = logging.getLogger(__name__)
 def configure_opensearch_index(os_client,index_name):
   logger.info('Configure opensearch index')
   index_body = """

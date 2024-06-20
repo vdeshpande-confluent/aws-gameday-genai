@@ -4,15 +4,18 @@ from confluent_kafka import Producer
 from confluent_kafka.serialization import SerializationContext, MessageField
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 def prompt_to_dict(prompt, ctx):
     return prompt
 
 def delivery_report(err, msg):
     if err is not None:
-        print("Delivery failed for User record {}: {}".format(msg.key(), err))
+        logger.error("Delivery failed for User record {}: {}".format(msg.key(), err))
         return
-    print('User record {} successfully produced to {} [{}] at offset {}'.format(
+    logger.info('User record {} successfully produced to {} [{}] at offset {}'.format(
         msg.key(), msg.topic(), msg.partition(), msg.offset()))
 
 def run_producer(matched_items,prompt_details,producer_conf,schema_conf,kafka_topic_name):
@@ -20,7 +23,7 @@ def run_producer(matched_items,prompt_details,producer_conf,schema_conf,kafka_to
         'prompt_details':prompt_details,
         'matched_indexes' : matched_items
     }
-    print(prompt_matched_responses['prompt_details'])
+    logger.info(prompt_matched_responses['prompt_details'])
     sr = SchemaRegistryClient({
         'url': schema_conf['url'],
         'basic.auth.user.info': schema_conf['basic.auth.user.info']
@@ -41,7 +44,7 @@ def run_producer(matched_items,prompt_details,producer_conf,schema_conf,kafka_to
         'sasl.username': producer_conf['sasl.username'],
         'sasl.password':producer_conf['sasl.password']
     }
-    print('producer initialize')
+    logger.info('producer initialize')
     producer = Producer(producer_conf)
     producer.produce(topic=kafka_topic_name,
                      value=avro_serializer(prompt_matched_responses, SerializationContext(kafka_topic_name, MessageField.VALUE)),

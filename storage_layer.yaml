@@ -5,7 +5,7 @@ Parameters:
   EnvironmentPrefix:
     Type: String
     Description: Prefix to identify the buckets and resources
-    Default: gameday-cflt
+    Default: cflt-gameday
 
 Resources:
   DataBucket:

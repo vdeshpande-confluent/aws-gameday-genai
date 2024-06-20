@@ -5,15 +5,15 @@ Parameters:
   EnvironmentPrefix:
     Type: String
     Description: Prefix to identify the buckets and resources
-    Default: gameday-cflt
+    Default: cflt-gameday
   S3CodeBucketName:
     Type: String
     Description: Lambda Code and Layer bucket
-    Default: gameday-cflt-code
+    Default: cflt-gameday-code
   S3DataBucketName:
     Type: String
     Description: Context and Prompt Data Bucket
-    Default: gameday-cflt-data
+    Default: cflt-gameday-data
   ContextClientCodeKey:
     Type: String
     Description: Context and Prompt Data Bucket
@@ -30,12 +30,80 @@ Parameters:
     Type: String
     Description: Context and Prompt Data Bucket
     Default: synthesize_result_client.zip
+  PromptProducerCodeKey:
+    Type: String
+    Description: Context and Prompt Data Bucket
+    Default: prompt_producer.zip
   LambdaLayerCodeKey:
     Type: String
     Description: Lambda Layer S3 Key
     Default: awsgameday_confluent_sdk_v2.zip
 
+  BOOTSTRAPKAFKASERVER:
+    Type: String
+    Description: Kafka bootstrap server endpoint
+    Default: insert-bootstrap-server-url-here
+
+  KAFKAAPIKEY:
+    Type: String
+    Description: Kafka API key
+    Default: insert-kafka-api-key-here  # Replace with your actual default value
+
+  KAFKAAPISECRET:
+    Type: String
+    Description: Kafka API secret
+    Default: insert-kafka-api-secret-here  # Replace with your actual default value
+
+  SRAPIKEY:
+    Type: String
+    Description: Schema Registry API key
+    Default: insert-sr-api-key-here  # Replace with your actual default value
+
+  SRAPISECRET:
+    Type: String
+    Description: Schema Registry API secret
+    Default: insert-sr-api-secret-here  # Replace with your actual default value
+
+  SRURL:
+    Type: String
+    Description: Schema Registry URL
+    Default: insert-https://schema-registry.example.com  # Replace with your actual default value
+
+  CLUSTERID:
+    Type: String
+    Description: Kafka Cluster ID
+    Default: insert-kafka-cluster-id  
+  
+
 Resources:
+
+  NetworkPolicy:
+    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
+    Properties:
+      Name: !Sub '${EnvironmentPrefix}-network-policy'
+      Type: network
+      Description: Network policy for quickstart collection
+      Policy: >-
+        [{"Rules":[{"ResourceType":"collection","Resource":["collection/cflt-gameday-collection"]},{"ResourceType":"dashboard","Resource":["collection/cflt-gameday-collection"]}],"AllowFromPublic":true}]
+  
+
+  DataAccessPolicy:
+    Type: 'AWS::OpenSearchServerless::AccessPolicy'
+    Properties:
+      Name: !Sub '${EnvironmentPrefix}-access-policy'
+      Type: data
+      Description: Access policy for quickstart collection
+      Policy: !Sub >-
+        [{"Description":"Access for cfn user","Rules":[{"ResourceType":"index","Resource":["index/*/*"],"Permission":["aoss:*"]},{"ResourceType":"collection","Resource":["collection/cflt-gameday-collection"],"Permission":["aoss:*"]}],"Principal":["arn:aws:iam::${AWS::AccountId}:role/cflt-gameday-exec-role"]}]
+  
+  EncryptionPolicy:
+    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
+    Properties:
+      Name: !Sub '${EnvironmentPrefix}-encryption-policy'
+      Type: encryption
+      Description: Encryption policy for test collection
+      Policy: >-
+        {"Rules":[{"ResourceType":"collection","Resource":["collection/cflt-gameday-collection"]}],"AWSOwnedKey":true}
 
   VectorCollection:
     Type: 'AWS::OpenSearchServerless::Collection'
@@ -45,14 +113,7 @@ Resources:
       Description: Search collection
     DependsOn: EncryptionPolicy
 
-  EncryptionPolicy:
-    Type: 'AWS::OpenSearchServerless::SecurityPolicy'
-    Properties:
-      Name: !Sub '${EnvironmentPrefix}-encryption-policy'
-      Type: encryption
-      Description: Encryption policy for test collection
-      Policy: >-
-        {"Rules":[{"ResourceType":"collection","Resource":["collection/gameday-cflt-collection"]}],"AWSOwnedKey":true}
+  
 
   # Lambda Layer
   LambdaLayer:
@@ -70,7 +131,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${EnvironmentPrefix}-context-client'
-      Handler: lambdas.context_client.main.lambda_handler
+      Handler: main.lambda_handler
       Runtime: python3.12
       Architectures:
         - arm64
@@ -88,32 +149,14 @@ Resources:
         S3Key: !Ref ContextClientCodeKey
       Layers:
         - !Ref LambdaLayer
+    DependsOn: LambdaExecutionRole
 
   # Lambda Function 2
   LambdaFunction2:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${EnvironmentPrefix}-prompt-client'
-      Handler: lambdas.prompt_client.main.lambda_handler
-      Runtime: python3.12
-      Architectures:
-        - arm64
-      Timeout: 900
-      MemorySize: 128
-
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Code:
-        S3Bucket: !Ref S3CodeBucketName
-        S3Key: !Ref PromptClientCodeKey
-      Layers:
-        - !Ref LambdaLayer
-
-  # Lambda Function 3
-  LambdaFunction3:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub '${EnvironmentPrefix}-data-generation'
-      Handler: lambdas.data_generation_client.main.lambda_handler
+      Handler: main.lambda_handler
       Runtime: python3.12
       Architectures:
         - arm64
@@ -121,8 +164,46 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
-          VAR1: value1
-          VAR2: value2
+          BOOTSTRAP_KAFKA_SERVER : !Ref BOOTSTRAPKAFKASERVER
+          HOST: !GetAtt VectorCollection.CollectionEndpoint
+          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_SECRET: !Ref KAFKAAPISECRET
+          KAFKA_TOPIC_NAME: prompt_embedding
+          REGION: us-east-1
+          SR_API_KEY: !Ref SRAPIKEY
+          SR_API_SECRET: !Ref SRAPISECRET
+          SR_URL: !Ref SRURL
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref PromptClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+    DependsOn: LambdaExecutionRole
+
+  # Lambda Function 3
+  LambdaFunction3:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-data-generation'
+      Handler: main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 128
+      Environment:
+        Variables:
+          BOOTSTRAP_KAFKA_SERVER: !Ref BOOTSTRAPKAFKASERVER
+          CONTEXT_BUCKET: !Ref S3DataBucketName
+          CONTEXT_SIZE: 10
+          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_SECRET: !Ref KAFKAAPISECRET
+          KAFKA_TOPIC_NAME: context
+          REGION: us-east-1
+          SR_API_KEY: !Ref SRAPIKEY
+          SR_API_SECRET: !Ref SRAPISECRET
+          SR_URL: !Ref SRURL
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: !Ref S3CodeBucketName
@@ -135,7 +216,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${EnvironmentPrefix}-synthesize-result'
-      Handler: lambdas.synthesize_result_client.main.lambda_handler
+      Handler: main.lambda_handler
       Runtime: python3.12
       Architectures:
         - arm64
@@ -143,12 +224,42 @@ Resources:
       MemorySize: 1024
       Environment:
         Variables:
-          VAR1: value1
-          VAR2: value2
+          CLUSTER_ID: !Ref CLUSTERID
+          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_SECRET: !Ref KAFKAAPISECRET
+          KAFKA_BOOTSTRAP_SERVER: !Ref BOOTSTRAPKAFKASERVER
+          KAFKA_TOPIC_NAME: product_recommendations
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: !Ref S3CodeBucketName
         S3Key: !Ref ResultClientCodeKey
+      Layers:
+        - !Ref LambdaLayer
+
+    # Lambda Function 5 (with 1024MB memory)
+  LambdaFunction5:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${EnvironmentPrefix}-prompt-producer'
+      Handler: main.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BOOTSTRAP_KAFKA_SERVER: !Ref BOOTSTRAPKAFKASERVER
+          KAFKA_API_KEY: !Ref KAFKAAPIKEY
+          KAFKA_API_SECRET: !Ref KAFKAAPISECRET
+          KAFKA_TOPIC_NAME: prompt
+          SR_API_KEY: !Ref SRAPIKEY
+          SR_API_SECRET: !Ref SRAPISECRET
+          SR_URL: !Ref SRURL
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref S3CodeBucketName
+        S3Key: !Ref PromptProducerCodeKey
       Layers:
         - !Ref LambdaLayer
 
@@ -168,8 +279,27 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-
-          
+      Policies:
+        - PolicyName: AOSSInlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'aoss:*'
+                Resource: '*'
+        - PolicyName: LambdaLoggingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+  
+        
                 
 Outputs:
   LambdaLayerVersionArn:

@@ -4,6 +4,9 @@ import numpy as np
 import json
 from typing import List, Dict
 import os
+import logging
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 
 
@@ -55,9 +58,9 @@ class VectorSearchClient:
             for hit in image_hits:
                 hit['_source'].pop('vector_embedding', None)
 
-            # Print the responses
-            print(f"text_based_search_response: {text_based_search_response}")
-            print(f"image_based_search_response: {image_based_search_response}")
+            # Logger.info the responses
+            logger.info(f"text_based_search_response: {text_based_search_response}")
+            logger.info(f"image_based_search_response: {image_based_search_response}")
 
             # Combining the hits
             combined_hits = text_hits + image_hits
@@ -65,12 +68,12 @@ class VectorSearchClient:
             # Sort the combined hits by score in descending order
             combined_hits_sorted = sorted(combined_hits, key=lambda x: x['_score'], reverse=True)
 
-            # Take the top 5 results
+            # Take the top N results
             top_5_hits = combined_hits_sorted[:num_neighbors]
             
 
         except Exception as e:
-            print(f"error occured while querying OpenSearch index={'rag-index'}, exception={e}")
+            logger.error(f"error occured while querying OpenSearch index={'rag-index'}, exception={e}")
             
         return [hit['_source']['context_index_id'] for hit in top_5_hits]
  
