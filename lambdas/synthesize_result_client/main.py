@@ -32,7 +32,7 @@ try:
     # Model configuration
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
     model_kwargs = {
-        "max_tokens": 2048,  # Corrected parameter name
+        "max_tokens": 200000,  # Corrected parameter name
         "temperature": 0.0,
         "top_k": 250,
         "top_p": 1,

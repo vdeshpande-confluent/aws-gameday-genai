@@ -15,7 +15,7 @@ api_secret = os.environ.get("KAFKA_API_SECRET")
 def produce_recommendation_result(prompt_id,response):
     try: 
         # Your Confluent Cloud API endpoint
-        
+        logger.info(f"Sending a curl request to produce recommendation")
         url = f'https://{bootstrap_server}/kafka/v3/clusters/{cluster_id}/topics/{topic_name}/records'
         
         # Encode your API key and secret
@@ -38,9 +38,9 @@ def produce_recommendation_result(prompt_id,response):
         
         response = requests.post(url, headers=headers, json=data)
         if response.status_code!=200:
-            raise Exception("Record not produced to recommendation topic, Error Code"+response.status_code+"Error response"+response.json())
+            raise Exception(f"Record not produced to recommendation topic, Error Code : {response.status_code} Error response {response.json()}")
     
-        logger.info("Response successfully produce to recommendation topic:"+response.status_code)
+        logger.info(f"Response successfully produce to recommendation topic: {response.status_code}")
         logger.info(response.json())
     except Exception as e:
         logger.error(e)

@@ -166,8 +166,9 @@ Resources:
         Variables:
           BOOTSTRAP_KAFKA_SERVER : !Ref BOOTSTRAPKAFKASERVER
           HOST: !GetAtt VectorCollection.CollectionEndpoint
-          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_KEY: !Ref KAFKAAPIKEY
           KAFKA_API_SECRET: !Ref KAFKAAPISECRET
+          BUCKET_NAME: !Ref S3DataBucketName
           KAFKA_TOPIC_NAME: prompt_embedding
           REGION: us-east-1
           SR_API_KEY: !Ref SRAPIKEY
@@ -197,7 +198,7 @@ Resources:
           BOOTSTRAP_KAFKA_SERVER: !Ref BOOTSTRAPKAFKASERVER
           CONTEXT_BUCKET: !Ref S3DataBucketName
           CONTEXT_SIZE: 10
-          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_KEY: !Ref KAFKAAPIKEY
           KAFKA_API_SECRET: !Ref KAFKAAPISECRET
           KAFKA_TOPIC_NAME: context
           REGION: us-east-1
@@ -225,7 +226,7 @@ Resources:
       Environment:
         Variables:
           CLUSTER_ID: !Ref CLUSTERID
-          KAFKAAPIKEY: !Ref KAFKAAPIKEY
+          KAFKA_API_KEY: !Ref KAFKAAPIKEY
           KAFKA_API_SECRET: !Ref KAFKAAPISECRET
           KAFKA_BOOTSTRAP_SERVER: !Ref BOOTSTRAPKAFKASERVER
           KAFKA_TOPIC_NAME: product_recommendations

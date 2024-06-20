@@ -54,8 +54,8 @@ def generate_prompt(humanRequest : HumanRequest,s3_client):
             prompt_image_text = "\nUser has also provided a reference image/product image to support the task. Image:"
             prompt_image = get_encoded_image_from_uri(humanRequest.prompt_image_url,s3_client)
             
-            content = promptContent+ "" +prompt_image_text+ "" +prompt_image+ "" +supportingDescriptions+ "" + supportingAttributes+ "" +supportingImagePrompt
-            # content = promptContent+ "" +prompt_image_text+ "" +supportingDescriptions+ "" + supportingAttributes+ "" +supportingImagePrompt
+            # content = promptContent+ "" +prompt_image_text+ "" +prompt_image+ "" +supportingDescriptions+ "" + supportingAttributes+ "" +supportingImagePrompt
+            content = promptContent+ "" +prompt_image_text+ "" +supportingDescriptions+ "" + supportingAttributes+ "" +supportingImagePrompt
         else:
             content = promptContent+ "" +prompt_image_text+ "" +supportingDescriptions+ "" + supportingAttributes+ "" +supportingImagePrompt
         
