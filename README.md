@@ -1,1 +1,1 @@
-# Building an Image+Text Q&A Pipeline for Domain-Specific Knowledge Bots
+# aws-gameday-genai
